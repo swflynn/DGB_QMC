@@ -1,0 +1,5 @@
+test.xyz    ! input geometry
+10          ! number of Gaussians (1D)
+1000        ! number of sobol points 
+1.0
+-6

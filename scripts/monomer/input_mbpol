@@ -1,0 +1,9 @@
+mbpol                   !potential
+mbpol_monomer.xyz       !input geometry
+3                       !s_dim
+.1                      !alpha0
+500                     !frequency cutoff
+500                     !frequency replace
+100                      !Number of Gaussians
+100                     !Number of sobol points
+10                      !data frequency

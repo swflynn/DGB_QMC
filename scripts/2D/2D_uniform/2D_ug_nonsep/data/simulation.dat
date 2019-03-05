@@ -1,0 +1,8 @@
+ Natoms ==>           1
+ Dimensionality Input System ==>           2
+ wavefunction bounds ==>  -3.0000000000000000        3.0000000000000000     
+ NG_1D ==>          10
+ N_gauss ==>         100
+ N_Sobol ==>         100
+ omega ==>   2.0000000000000000        2.8284271247461903     
+ Alpha Parameter ==>   1.0000000000000000     

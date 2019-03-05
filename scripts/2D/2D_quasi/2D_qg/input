@@ -1,0 +1,5 @@
+2D_geometry.xyz    !input geometry
+.1                   ! alpha0
+20                 !number of Gaussians
+100               !Number of sobol points
+10                  !data frequency

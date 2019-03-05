@@ -1,0 +1,6 @@
+test1.xyz    !input geometry
+25          !number of Gaussians
+1000         !Number of sobol points
+1.4          !alpha parameter
+-10         !lower bound x axis
+10          !upper bound x axis

@@ -1,0 +1,4 @@
+1D_geometry.xyz     !input geometry
+10                 !number of Gaussians
+100                !Number of sobol points
+.1                  ! alpha0 parameter
