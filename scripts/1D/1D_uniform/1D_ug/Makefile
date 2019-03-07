@@ -1,20 +1,23 @@
-OBJS = Sobol S_std 1D main
-FC = gfortran -g -fcheck=all
-
-all: Sobol S_std 1D main
-
-Sobol:
-	$(FC) -c sobol.f90
-
-S_std:
-	$(FC) -c sobol_stdnormal.f90
-
-1D:
-	$(FC) -c 1D_ug.f90 -llapack
-#	$(FC) -c -g -O0 -Wall -pedantic -fcheck=all -fbacktrace 1D_ug.f90 -llapack
-
-main:
-	$(FC) -O 1D_ug.o sobol.o sobol_stdnormal.o -llapack
+#==============================================================================#
+#			    Fortran Compiler/Flags
+#==============================================================================#
+FC=gfortran 
+#FFLAGS=-O2
+FFLAGS=-O0 -Wall -Wextra -pedantic -fcheck=all -fbacktrace -llapack
+#==============================================================================#
+#				 Targets
+#==============================================================================#
+all: dgb_1D
+#==============================================================================#
+#			Compile all Fortran Files
+#==============================================================================#
+%.o: %.f90
+	$(FC) $(FFLAGS) -o $@ -c $^
+#==============================================================================#
+#				DGB Monomer
+#==============================================================================#
+dgb_1D: sobol.o sobol_stdnormal.o 1D_ug.o 
+	$(FC) -o $@ $^ -llapack
 
 clean:
-	rm -rf *.o *.mod *.out $(OBJS)
+	rm -f *.o *.mod dgb_1D

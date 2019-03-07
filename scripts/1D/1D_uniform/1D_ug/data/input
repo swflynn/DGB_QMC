@@ -1,0 +1,14 @@
+1D_geometry.xyz     !input geometry
+25                  !Number of Gaussians
+100                 !Number of sobol points
+100                 !skip2
+-10                  !lower bound for grid
+10                   !upper bound for grid
+1.4                  !alpha0 parameter
+10                  !data_freq
+true                !write gaussian centers
+true                !write alpha values 
+false               !read in potential  matrix
+potential.dat       !file containing potential matrix
+11                  !newstart
+1                   !counter

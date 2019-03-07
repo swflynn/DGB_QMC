@@ -26,8 +26,8 @@ double precision,parameter::pi=4.*atan(1d0)
 !Dimen      ==> Dimensionality 
 !==============================================================================!
 integer::Natoms,Dimen
-character(len=2),allocatable::atom_type(:)
-double precision,allocatable::mass(:),sqrt_mass(:)
+character(len=2),allocatable,dimension(:)::atom_type
+double precision,allocatable,dimension(:)::mass,sqrt_mass
 !==============================================================================!
 contains
 !==============================================================================!
@@ -136,76 +136,81 @@ program DGB_1D
 use dgb_groundstate
 !==============================================================================!
 !               Discussion:
-!coord_in        ==> Input Water Geometry 
-!NG                ==> Number of Gaussians 
-!Nsobol            ==> Number of Sobol Points for numerical integration
-!ii, skip          ==> Integer; (kind=8) necessary for using Sobol Module
-!q0(Dimen)         ==> Input Water Geometry x,y,z coordinates 
-!      	        Assumes Input Coordinates in Angstroms
-!q(dimen, NG)      ==> Gaussian Centers (distributed according to Ground State)
-!q2(dimen, Nsobol) ==> Sequence for potential evaluation (distrbuted to ground state)
-!q3(dimen, Nsobol) ==> Sequence for potential sacaled by alpha factors for Vij
-!force(Dimen)      ==> Forces associated with atoms
-!omega(Dimen)      ==> Eigenvalues of the Hessian (frequencies)
-!U(Dimen,Dimen)    ==> Normal Modes from Hessian
-!y(Dimen,NG)       ==> Sobol points for Gaussian Centers
-!y2(Dimen,integ)   ==> Sobol Sequence for computing Matrices
-!S(NG,NG)          ==> Overlap matrix for Gaussians
-!S1(NG,NG)         ==> Overlap matrix for eigenvalues (destroyed each iteration)
-!Vmat(NG,NG)       ==> Potential Energy Matrix
-!V1mat(NG,NG)      ==> Potential Energy Matrix Partial Average
-!Hmat(NG,NG)       ==> Hamiltonian Matrix (V+T) for eigenvalue problem
-!eigenvalues(NG)   ==> Eigenvalues of the Hamiltonian Matrix
+!coord_in           ==> Input Water Geometry 
+!NG                 ==> Number of Gaussians 
+!Nsobol             ==> Number of Sobol Points for numerical integration
+!ii, skip2          ==> Integer; (kind=8) necessary for using Sobol Module
+!q0(Dimen)          ==> Input Water Geometry x,y,z coordinates 
+!q(dimen, NG)       ==> Gaussian Centers (distributed according to Ground State)
+!q2(dimen, Nsobol)  ==> Sequence for integration
+!force(Dimen)       ==> Forces associated with atoms
+!omega(Dimen)       ==> Eigenvalues of the Hessian (frequencies)
+!U(Dimen,Dimen)     ==> Normal Modes from Hessian
+!y(Dimen,NG)        ==> Sobol points for Gaussian Centers
+!y2(Dimen,integ)    ==> Sobol Sequence for computing Matrices
+!S(NG,NG)           ==> Overlap matrix for Gaussians
+!S1(NG,NG)          ==> Overlap matrix for eigenvalues (destroyed each iteration)
+!Vmat(NG,NG)        ==> Potential Energy Matrix
+!V1mat(NG,NG)       ==> Potential Energy Matrix Partial Average
+!Hmat(NG,NG)        ==> Hamiltonian Matrix (V+T) for eigenvalue problem
+!eigenvalues(NG)    ==> Eigenvalues of the Hamiltonian Matrix
 !==============================================================================!
 implicit none
-character(len=50)::coord_in
-integer::NG,Nsobol
-integer::i,j,l
-integer*8::ii,skip,skip2
-double precision::E0,pot_ene,alpha_par,lower,upper,S_sum
+character(len=50)::coord_in,V_in
+integer::NG,Nsobol,Nstart
+integer::i,j,k,counter,data_freq
+integer*8::ii,skip2
+double precision::E0,pot_ene,alpha_par,lower,upper,s_sum
+logical::write_gaus,write_alpha,read_V
 !==============================================================================!
-double precision,allocatable::q0(:),force(:),r(:,:),r2(:),eigenvalues(:)
-double precision,allocatable::Hess(:,:),omega(:),U(:,:),z(:,:),Smat(:,:)
-double precision,allocatable::S1mat(:,:),alpha(:),Tmat(:,:),Vmat(:,:)
-double precision,allocatable::lambda(:),r_ij(:),Hmat(:,:)
+double precision,allocatable,dimension(:)::q0,force,r2,eigenvalues,omega,alpha
+double precision,allocatable,dimension(:)::r_ij,lambda
+double precision,allocatable,dimension(:,:)::Hess,U,z2,r,Smat,S1mat,Tmat,Vmat
+double precision,allocatable,dimension(:,:)::Hmat
 !==============================================================================!
 !                           dsygv variables                                    !
 !==============================================================================!
 integer::itype,info,lwork
-double precision,allocatable::work(:)
+double precision,allocatable,dimension(:)::work
 !==============================================================================!
 !                           Read Input Data File                               !
 !==============================================================================!
 read(*,*) coord_in
 read(*,*) NG
 read(*,*) Nsobol
-read(*,*) alpha_par
+read(*,*) skip2
 read(*,*) lower 
 read(*,*) upper
-skip=NG
-skip2=Nsobol
+read(*,*) alpha_par
+read(*,*) data_freq
+read(*,*) write_gaus
+read(*,*) write_alpha
+read(*,*) read_V
+read(*,*) V_in
+read(*,*) Nstart
+read(*,*) counter
 write(*,*) 'Test 1; Successfully Read Input Data File'
 !==============================================================================!
 !                           Input Water Geometry 
 !==============================================================================!
-open(66,File=coord_in)
-read(66,*) Natoms
-read(66,*) 
+open(16,File=coord_in)
+read(16,*) Natoms
+read(16,*) 
 Dimen=1*Natoms 
 write(*,*) 'Dimensionality ==> ', Dimen
 !==============================================================================!
 !                         Input Configuration Energy
 !==============================================================================!
 allocate(atom_type(Natoms),mass(Natoms),sqrt_mass(Dimen),q0(Dimen),force(Dimen))
-allocate(Hess(Dimen,Dimen),omega(Dimen),U(Dimen,Dimen),z(Dimen,Nsobol))
+allocate(Hess(Dimen,Dimen),omega(Dimen),U(Dimen,Dimen),z2(Dimen,Nsobol))
 allocate(r(Dimen,NG),alpha(NG),Smat(NG,NG),S1mat(NG,NG),eigenvalues(NG))
 allocate(Tmat(NG,NG),Vmat(NG,NG),Hmat(NG,NG),r2(Dimen),lambda(NG),r_ij(Dimen))
 do i=1,Natoms
-    read(66,*) atom_type(i), q0(1)   
+    read(16,*) atom_type(i), q0(1)   
     mass(i)=Atom_mass(atom_type(i))
     sqrt_mass(1)=sqrt(mass(i))
 enddo
-close(66)
+close(16)
 call toy_potential(q0,E0)
 write(*,*) 'E0 ==> ', E0
 !==============================================================================!
@@ -217,19 +222,40 @@ write(*,*) 'Test 2; Successfully Computed Hessian'
 !==============================================================================!
 !           Generate Gaussian Centers with Uniform Grid 
 !==============================================================================!
-open(unit=17,file='centers.dat')
 do i=1,NG
-    r(1,i)=lower+(i-1.)*(upper-lower)/(NG-1.)
-    write(17,*) r(1,i)
+    r(:,i)=lower+(i-1.)*(upper-lower)/(NG-1.)
 enddo
-close(17)
 write(*,*) 'Test 3; Successfully Generted Gaussian Centers'
 !==============================================================================!
 !                       Generate Alpha Scaling 
 ! A single paramater for each gaussian (the same across all dimensions)
 !==============================================================================!
 alpha=alpha_par
-write(*,*) 'Test 4; Successfully Generated Gaussian Widths'
+!==============================================================================!
+!                       Write Center/Alpha to file
+!==============================================================================!
+if((write_gaus).and.(write_alpha))then
+    open(unit=17,file='centers.dat')
+    open(unit=18,file='alpha.dat')
+    do i=1,NG
+        write(17,*) r(:,i)
+        write(18,*) alpha(i)
+    enddo
+    close(17)
+    close(18)
+elseif((write_gaus).and..not.(write_alpha))then
+    open(unit=17,file='centers.dat')
+    do i=1,NG
+        write(17,*) r(:,i)
+    enddo
+    close(17)
+elseif((write_alpha).and..not.(write_gaus))then
+    open(unit=18,file='alpha.dat')
+    do i=1,NG
+        write(18,*) alpha(i)
+    enddo
+    close(18)
+endif
 !==============================================================================!
 !                           Overlap Matrix (S)
 !==============================================================================!
@@ -250,12 +276,11 @@ lwork=max(1,3*NG-1)
 allocate(work(max(1,lwork)))
 call dsyev('v','u',NG,S1mat,NG,lambda,work,Lwork,info)
 write(*,*) 'info Overlap Matrix ==> ', info
-open(unit=67,file='overlap_eigenvalues.dat')
+open(unit=19,file='overlap_eigenvalues.dat')
 do i=1,NG
-    write(67,*) lambda(i)
+    write(19,*) lambda(i)
 enddo
-close(67)
-write(*,*) 'Test 5; Successfully Computed Overlap Matrix'
+close(19)
 !==============================================================================!
 !                           Kinetic Matrix (T)
 !==============================================================================!
@@ -267,51 +292,96 @@ do i=1,NG
         Tmat(j,i)=Tmat(i,j)
     enddo
 enddo
+write(*,*) 'Test 4; Successfully Computed Analytic Matricies'
+!==============================================================================!
+!                       Check for Potential Continuation
+!==============================================================================!
+if(read_V)then
+    write(*,*) 'reading in initial potential matrix'
+    open(20,File=V_in)
+    do i=1,NG
+        read(20,*) Vmat(i,:)
+    enddo
+    close(20)
+    write(*,*) 'Nstart ==> ', Nstart, 'counter ==> ', counter
+else
+    Nstart=1
+    counter=0
+    Vmat=0d0
+    write(*,*) 'Nstart ==> ', Nstart, 'counter ==> ', counter
+endif
 !==============================================================================!
 !                   Generate Sequence For Evaluating Potential
 !==============================================================================!
 do ii=1,Nsobol
-    call sobol_stdnormal(Dimen,skip2,z(:,ii))
+    call sobol_stdnormal(Dimen,skip2,z2(:,ii))
 enddo
+write(*,*) 'Test 5; Successfully Generated Integration Sequence'
 !==============================================================================!
 !                              Evaluate Potential 
 !==============================================================================!
-Vmat=0d0
-do i=1,NG
-   do j=i,NG
-      r_ij(:)=(alpha(i)*r(:,i)+alpha(j)*r(:,j))/(alpha(i)+alpha(j))
-        do l=1,Nsobol
-            r2(:)=r_ij(:)+z(:,l)/sqrt(omega(:)*(alpha(i)+alpha(j)))
-           call Toy_Potential((q0+matmul(U,r2)/sqrt_mass(:)),pot_ene)
-            Vmat(i,j)=Vmat(i,j)+pot_ene
+open(unit=21,file='eigenvalues.dat')
+do while(counter.lt.Nsobol/data_Freq)
+    do i=1,NG
+       do j=i,NG
+            r_ij(:)=(alpha(i)*r(:,i)+alpha(j)*r(:,j))/(alpha(i)+alpha(j))
+            do k=1+(counter*data_freq),(counter+1)*data_freq
+                r2(:)=r_ij(:)+z2(:,k)/sqrt(omega(:)*(alpha(i)+alpha(j)))
+                call Toy_Potential((q0+matmul(U,r2)/sqrt_mass(:)),pot_ene)
+                Vmat(i,j)=Vmat(i,j)+pot_ene
+            enddo
         enddo
-            Vmat(j,i)=Vmat(i,j)
     enddo
-enddo
-Vmat=Vmat*Smat/Nsobol
+    write(*,*) 'Iteration ==> ', (counter+1)*data_freq
+    Hmat=Vmat
+    do i=1,NG
+        do j=i,NG
+            Hmat(i,j)=Hmat(i,j)*(Smat(i,j)/((counter+1)*data_freq))+Tmat(i,j)
+            Hmat(j,i)=Hmat(i,j)
+        enddo
+    enddo
 !==============================================================================!
 !                     Solve Generalized Eigenvalue Problem
 !==============================================================================!
-Hmat=Vmat
-Hmat=Hmat+Tmat
-S1mat=Smat
-itype=1
-eigenvalues=0d0
+    itype=1
+    eigenvalues=0d0
 !==============================================================================!
 ! Allocations needed if overlap is not diagonalized above
 !==============================================================================!
 !lwork=max(1,3*NG-1)
 !allocate(work(max(1,lwork)))
 !==============================================================================!
-open(unit=69,file='eigenvalues.dat')
-call dsygv(itype,'n','u',NG,Hmat,NG,S1mat,NG,eigenvalues,work,Lwork,info) 
-write(*,*) 'info ==>', info
-!write(*,*) 'Computed,                   True Energy,                    %Error'
+    S1mat=Smat
+    call dsygv(itype,'n','u',NG,Hmat,NG,S1mat,NG,eigenvalues,work,Lwork,info) 
+    write(*,*) 'Info (Hamiltonian) ==>', info
+    write(21,*) eigenvalues(:)
+    counter=counter+1
+enddo
+close(21)
+!==============================================================================!
+!                           Theory Values (1D,Hard-Coded)
+!==============================================================================!
+open(unit=22,file='theory.dat')
 do i=1,NG
-    write(69,*) eigenvalues(i), ((i-1)+.5)*omega(1), &
-        ((eigenvalues(i) - ((i-1)+.5)*omega(1))/(((i-1)+.5)*omega(1)))*100
-enddo 
-close(69)
+   write(22,*) omega(1)*((i-1)+.5)
+enddo
+close(22)
+!==============================================================================!
+!                   Save Potential to Continue Calculation
+!==============================================================================!
+open(unit=23,file='potential.dat')
+do i=1,NG
+   write(23,*) Vmat(i,:)
+enddo
+close(23)
+!==============================================================================!
+!                   Write Final Eigenvalues to File with error
+!==============================================================================!
+open(unit=24,file='final.dat')
+do i=1,NG
+   write(24,*) i-1, eigenvalues(i), ((omega(1)*((i-1)+0.5)) - eigenvalues(i))/2
+enddo
+close(24)
 !==============================================================================!
 !                               output file                                    !
 !==============================================================================!
