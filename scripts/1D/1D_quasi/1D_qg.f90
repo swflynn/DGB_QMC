@@ -27,8 +27,8 @@ double precision,parameter::pi=4.*atan(1d0)
 !Dimen              ==> System Dimensionality 
 !==============================================================================!
 integer::Natoms,Dimen
-character(len=2),allocatable::atom_type(:)
-double precision,allocatable::mass(:),sqrt_mass(:)
+character(len=2),allocatable,dimension(:)::atom_type
+double precision,allocatable,dimension(:)::mass,sqrt_mass
 !==============================================================================!
 contains
 !==============================================================================!
@@ -64,7 +64,6 @@ subroutine Toy_Force(x,forces)
 !Forces are hard-coded based on Toy_Potential 
 !==============================================================================!
 implicit none
-integer::i
 double precision::x(Dimen),forces(Dimen)
 forces(1)=-x(1)
 end subroutine Toy_Force
@@ -119,7 +118,7 @@ subroutine Freq_Hess(Dimen,Hess,omega,U)
 implicit none
 integer::i,info,lwork,Dimen
 double precision::Hess(Dimen,Dimen),omega(Dimen),U(Dimen,Dimen)
-double precision,allocatable::work(:) 
+double precision,allocatable,dimension(:)::work
 lwork = max(1,3*Dimen-1)        !suggested by LAPACK Developers
 allocate(work(max(1,lwork)))    !suggested by LAPACK Developers 
 U=Hess  
@@ -164,30 +163,38 @@ use dgb_groundstate
 !pot_ene        ==> Potential Energy evaluated in q space
 !==============================================================================!
 implicit none
-character(len=50)::coord_in
-integer::NG,Nsobol
-integer::i,j,k,l,n
+character(len=50)::coord_in,V_in
+integer::NG,Nsobol,Nstart
+integer::i,j,k,counter,data_freq
 integer*8::ii,skip,skip2
 double precision::E0,pot_ene,s_sum,alpha0
+logical::write_gaus,write_alpha,read_V
 !==============================================================================!
-double precision,allocatable::q0(:),force(:),r(:,:),r2(:),eigenvalues(:)
-double precision,allocatable::Hess(:,:),omega(:),U(:,:),z(:,:),z2(:,:)
-double precision,allocatable::Smat(:,:),alpha(:),Tmat(:,:),Vmat(:,:)
-double precision,allocatable::Hmat(:,:),S1mat(:,:),lambda(:),r_ij(:)
+double precision,allocatable,dimension(:)::q0,force,r2,eigenvalues,omega,alpha
+double precision,allocatable,dimension(:)::r_ij,lambda
+double precision,allocatable,dimension(:,:)::r,Hess,Smat,Tmat,Vmat,U,z,z2,Hmat
+double precision,allocatable,dimension(:,:)::S1mat
 !==============================================================================!
 !                       LLAPACK dsygv variables                                !
 !==============================================================================!
 integer::itype,info,lwork
 double precision,allocatable::work(:)
 !==============================================================================!
-!                           Read Input Data File                               !
+!                           Read Input File                                    !
 !==============================================================================!
 read(*,*) coord_in
 read(*,*) NG
+read(*,*) skip
 read(*,*) Nsobol
+read(*,*) skip2
 read(*,*) alpha0
-skip=NG
-skip2=Nsobol
+read(*,*) data_freq
+read(*,*) write_gaus
+read(*,*) write_alpha
+read(*,*) read_V
+read(*,*) V_in
+read(*,*) Nstart
+read(*,*) counter
 write(*,*) 'Test 1; Successfully Read Input Data File'
 !==============================================================================!
 !                         Set Input Water Geometry 
@@ -235,11 +242,31 @@ enddo
 do i=1,NG
     alpha(i)=alpha0*NG**(2./dimen)*exp(-1./dimen*sum(r(:,i)**2*omega(:)))
 enddo
-open(unit=17,file='centers.dat')
-do i=1,NG
-    write(17,*) alpha(i), r(1,i)
-enddo
-close(17)
+!==============================================================================!
+!                       Write Center/Alpha to file
+!==============================================================================!
+if((write_gaus).and.(write_alpha))then
+    open(unit=17,file='centers.dat')
+    open(unit=18,file='alpha.dat')
+    do i=1,NG
+        write(17,*) r(:,i)
+        write(18,*) alpha(i)
+    enddo
+    close(17)
+    close(18)
+elseif((write_gaus).and..not.(write_alpha))then
+    open(unit=17,file='centers.dat')
+    do i=1,NG
+        write(17,*) r(:,i)
+    enddo
+    close(17)
+elseif((write_alpha).and..not.(write_gaus))then
+    open(unit=18,file='alpha.dat')
+    do i=1,NG
+        write(18,*) alpha(i)
+    enddo
+    close(18)
+endif
 !==============================================================================!
 !                           Overlap Matrix (S)
 !==============================================================================!
@@ -260,11 +287,11 @@ lwork=max(1,3*NG-1)
 allocate(work(max(1,lwork)))
 call dsyev('v','u',NG,S1mat,NG,lambda,work,Lwork,info)
 write(*,*) 'Info (Overlap Matrix) ===>', info
-open(unit=18,file='overlap_eigenvalues.dat')
+open(unit=19,file='overlap_eigenvalues.dat')
 do i=1,NG
-    write(18,*) lambda(i)
+    write(19,*) lambda(i)
 enddo
-close(18)
+close(19)
 write(*,*) 'Test 3; Successfully computed Overlap Matrix'
 !==============================================================================!
 !                           Kinetic Matrix (T)
@@ -279,6 +306,23 @@ do i=1,NG
 enddo
 write(*,*) 'Test 4; Successfully computed Kinetic Matrix'
 !==============================================================================!
+!                       Check for Potential Continuation
+!==============================================================================!
+if(read_V)then
+    write(*,*) 'reading in initial potential matrix'
+    open(20,File=V_in)
+    do i=1,NG
+        read(20,*) Vmat(i,:)
+    enddo
+    close(20)
+    write(*,*) 'Nstart ==> ', Nstart, 'counter ==> ', counter
+else
+    Nstart=1
+    counter=0
+    Vmat=0d0
+    write(*,*) 'Nstart ==> ', Nstart, 'counter ==> ', counter
+endif
+!==============================================================================!
 !                   Generate Sequence For Evaluating Potential
 ! Want to generate a single sequence and then scale for each Gaussian
 !==============================================================================!
@@ -289,41 +333,68 @@ write(*,*) 'Test 5; Successfully generated integration sequence'
 !==============================================================================!
 !                           Evaluate Potential 
 !==============================================================================!
-Vmat=0d0
-do i=1,NG
-   do j=i,NG
-        r_ij(:)=(alpha(i)*r(:,i)+alpha(j)*r(:,j))/(alpha(i)+alpha(j))
-        do l=1,Nsobol
-            r2(:)=r_ij(:)+z2(:,l)/sqrt(omega(:)*(alpha(i)+alpha(j)))
-            call Toy_Potential((q0+matmul(U,r2)/sqrt_mass(:)),pot_ene)
-            Vmat(i,j)=Vmat(i,j)+pot_ene
+open(unit=21,file='eigenvalues.dat')
+do while(counter.lt.Nsobol/data_Freq)
+    do i=1,NG
+       do j=i,NG
+            r_ij(:)=(alpha(i)*r(:,i)+alpha(j)*r(:,j))/(alpha(i)+alpha(j))
+            do k=1+(counter*data_freq),(counter+1)*data_freq
+                r2(:)=r_ij(:)+z2(:,k)/sqrt(omega(:)*(alpha(i)+alpha(j)))
+                call Toy_Potential((q0+matmul(U,r2)/sqrt_mass(:)),pot_ene)
+                Vmat(i,j)=Vmat(i,j)+pot_ene
+            enddo
         enddo
-        Vmat(j,i)=Vmat(i,j)
     enddo
-enddo
-Vmat=Vmat*Smat/Nsobol
-write(*,*) 'Test 6; Successfully Computed Potential Matrix'
+    write(*,*) 'Iteration ==> ', (counter+1)*data_freq
+    Hmat=Vmat
+    do i=1,NG
+        do j=i,NG
+            Hmat(i,j)=Hmat(i,j)*(Smat(i,j)/((counter+1)*data_freq))+Tmat(i,j)
+            Hmat(j,i)=Hmat(i,j)
+        enddo
+    enddo
 !==============================================================================!
 !                     Solve Generalized Eigenvalue Problem
 !==============================================================================!
-Hmat=Vmat
-Hmat=Hmat+Tmat
-itype=1
-eigenvalues=0d0
+    itype=1
+    eigenvalues=0d0
 !==============================================================================!
 ! Allocations needed if overlap is not diagonalized above
 !==============================================================================!
 !lwork=max(1,3*NG-1)                                                           !
 !allocate(work(max(1,lwork)))                                                  !
 !==============================================================================!
-CALL dsygv(itype,'n','u',NG,Hmat,NG,Smat,NG,eigenvalues,work,Lwork,info) 
-write(*,*) 'Info (Hamiltonian) ==>', info
-open(unit=19,file='eigenvalues.dat')
-do i=1,NG
-    write(19,*) eigenvalues(i), ((i-1)+.5)*omega(1), &
-        ((eigenvalues(i) - ((i-1)+.5)*omega(1))/(((i-1)+.5)*omega(1)))*100
+    S1mat=Smat
+    CALL dsygv(itype,'n','u',NG,Hmat,NG,S1mat,NG,eigenvalues,work,Lwork,info) 
+    write(*,*) 'Info (Hamiltonian) ==>', info
+    write(21,*) eigenvalues(:)
+    counter=counter+1
 enddo
-close(19)
+close(21)
+!==============================================================================!
+!                           Theory Values (1D,Hard-Coded)
+!==============================================================================!
+open(unit=22,file='theory.dat')
+do i=1,NG
+   write(22,*) omega(1)*((i-1)+.5)
+enddo
+close(22)
+!==============================================================================!
+!                   Save Potential to Continue Calculation
+!==============================================================================!
+open(unit=23,file='potential.dat')
+do i=1,NG
+   write(23,*) Vmat(i,:)
+enddo
+close(23)
+!==============================================================================!
+!                   Write Final Eigenvalues to File with error
+!==============================================================================!
+open(unit=24,file='final.dat')
+do i=1,NG
+   write(24,*) i-1, eigenvalues(i), ((omega(1)*((i-1)+0.5)) - eigenvalues(i))/2
+enddo
+close(24)
 !==============================================================================!
 !                               output file                                    !
 !==============================================================================!

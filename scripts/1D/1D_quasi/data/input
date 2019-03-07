@@ -1,0 +1,13 @@
+1D_geometry.xyz     !input geometry
+10                  !Number of Gaussians
+10                  !skip
+100                 !Number of sobol points
+10                  !skip2
+.1                  !alpha0 parameter
+10                  !data_freq
+true                !write gaussian centers
+true                !write alpha values 
+false               !read in potential  matrix
+potential.dat       !file containing potential matrix
+11                  !newstart
+1                   !counter
