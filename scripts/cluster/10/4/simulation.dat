@@ -1,0 +1,10 @@
+ Natoms ==>           18
+ Dimensionality Input System ==>           54
+ Monomer Dimensionality ==>            9
+ Subspace Dimensionality ==>            3
+ potential ==> tip4p
+ alpha0 ==>    2.0000000000000000     
+ N_gauss ==>           10
+ N_Sobol ==>          200
+ omega ==>    1.7617291888294525E-002   1.5812115858493171E-002   7.5136833323346192E-003   3.4463008079754095E-003   2.4003270903508235E-003   1.0228037940334922E-003   9.3369152910785828E-004   8.1007119976299303E-004   4.7833975865430999E-004
+ Total Time ==>   0.954968989    

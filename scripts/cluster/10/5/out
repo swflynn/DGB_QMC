@@ -1,0 +1,62 @@
+ Test 1; Successfully Read Input Data File
+ Dimen ==>           54
+ d ==>            9
+ d1 ==>            3
+ E0 ==>   -17714.206140772338      cm-1  -50.647466790212881      kcal/mol
+ Frequencies from the Hessian:
+   1.7617291888294525E-002   3866.5486416879216      normalized==1?  0.99999999999999944     
+   1.5812115858493171E-002   3470.3582981156719      normalized==1?  0.99999999999999922     
+   7.5136833323346192E-003   1649.0628790690960      normalized==1?   1.0000000000000000     
+   3.4463008079754095E-003   756.37559917929514      normalized==1?   1.0000000000000000     
+   2.4003270903508235E-003   526.81090315414883      normalized==1?   1.0000000000000007     
+   1.0228037940334922E-003   224.47948558774186      normalized==1?  0.99999999999999967     
+   9.3369152910785828E-004   204.92160409888041      normalized==1?   1.0000000000000004     
+   8.1007119976299303E-004   177.79007789473155      normalized==1?  0.99999999999999989     
+   4.7833975865430999E-004   104.98344216678568      normalized==1?  0.99999999999999978     
+ Test 2; Successfully Computed Hessian
+ Test 3; Successfully Generated Gaussian Centers
+ Test 4; Successfully Generated Gaussian Widths
+ Info (Overlap Matrix) ==>            0
+ Test 5; Successfully Computed Overlap Matrix
+ Test 6; Successfully Generated Integration Sequence
+ Iteration ==>           10
+ info ==>            0
+ Iteration ==>           20
+ info ==>            0
+ Iteration ==>           30
+ info ==>            0
+ Iteration ==>           40
+ info ==>            0
+ Iteration ==>           50
+ info ==>            0
+ Iteration ==>           60
+ info ==>            0
+ Iteration ==>           70
+ info ==>            0
+ Iteration ==>           80
+ info ==>            0
+ Iteration ==>           90
+ info ==>            0
+ Iteration ==>          100
+ info ==>            0
+ Iteration ==>          110
+ info ==>            0
+ Iteration ==>          120
+ info ==>            0
+ Iteration ==>          130
+ info ==>            0
+ Iteration ==>          140
+ info ==>            0
+ Iteration ==>          150
+ info ==>            0
+ Iteration ==>          160
+ info ==>            0
+ Iteration ==>          170
+ info ==>            0
+ Iteration ==>          180
+ info ==>            0
+ Iteration ==>          190
+ info ==>            0
+ Iteration ==>          200
+ info ==>            0
+ Hello Universe!
