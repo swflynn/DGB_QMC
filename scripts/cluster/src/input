@@ -1,6 +1,6 @@
 tip4p           !Potential
-.1               !alpha0
-100               !Number of Gaussians
-1000             !Number of Sobol Points
-100              !Data Frequency
+.1              !alpha0
+100             !Number of Gaussians
+1000            !Number of Sobol Points
+100             !Data Frequency
 cage.xyz        !Input Geometry
