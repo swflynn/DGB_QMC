@@ -25,6 +25,10 @@ Implementation for a single water monomer.
 Solves the generalized eigenvalue problem using a GDB basis, numerical integrals computed using QMC-methods. 
 Tested with TIP4P and MBPOL PES and associated minimized water geomoetries. 
 
+### Cluster:
+Implementation for a single water monomer within a water cluster, subject to the local monomer approximation (Lmon).
+Solves the generalized eigenvalue problem using a GDB basis, numerical integrals computed using QMC-methods. 
+Tested with TIP4P and MBPOL PES and associated minimized water geomoetries. 
 
 # Open Source Codes
 The following codes have been useful during this project.
