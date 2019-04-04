@@ -1,8 +1,10 @@
 !=============================================================================80
-!                 Distributed Gaussian Basis (Ground State Energy)
+!                 Distributed Gaussian Basis (Cluster)
 !==============================================================================!
 !       Discussion:
-!DGB analysis for TIP4P water cluster using the local water monomer approximation
+!DGB analysis for water cluster using the local monomer approximation
+!Normal mode coordinates for analysis, Integration with quasi-random grid
+!Requires llapack (linear algebra package) for generalized eigenvalue problem
 !==============================================================================!
 !       Modified:
 !   18 january 2019
@@ -14,7 +16,7 @@ implicit none
 !==============================================================================!
 !                            Global Paramaters
 !d              ==> Monomer Dimensionality 
-!d1             ==> Subspace within monomer Dimensionality 
+!d1             ==> Dimensionality of Monomer Subspace 
 !==============================================================================!
 double precision,parameter::bohr=0.52917721092
 double precision,parameter::autocm=2.194746313D5
@@ -29,11 +31,11 @@ integer,parameter::d1=3
 !==============================================================================!
 !       Discussion:
 !Natoms             ==> Number of Atoms 
-!Dimen              ==> System Dimensionality 
+!Dimen              ==> Total System Dimensionality 
 !==============================================================================!
 integer::Natoms,Dimen
-character(len=2),allocatable::atom_type(:)
-double precision,allocatable::mass(:),sqrt_mass(:)
+character(len=2),allocatable,dimension(:)::atom_type
+double precision,allocatable,dimension(:)::mass(:),sqrt_mass
 character(len=5)::potential
 !==============================================================================!
 contains
@@ -53,39 +55,11 @@ else
 endif
 end function Atom_Mass
 !==============================================================================!
-subroutine water_potential(NO,q,energy,force)
-use iso_c_binding
-use TIP4P_module
-!==============================================================================!
-!       Discussion:
-!Potential Energy module for water
-!       Variables:
-!NO         ==> number of water molecules
-!q          ==> (9*NO); coordinates
-!force      ==> (9*NO) Forces computed in external water potential
-!energy     ==> Potential Energy
-!==============================================================================!
-implicit none
-integer,intent(in)::NO                              
-double precision,dimension(9*NO),intent(in)::q   
-double precision,dimension(9*NO),intent(inout)::force
-double precision,intent(inout)::energy
-if(potential=='tip4p') then
-   call TIP4P(NO,q,energy,force)
-elseif(potential=='mbpol')then
-    call calcpotg(NO,energy,q*bohr,force)
-    force=-force*bohr/autokcalmol
-    energy=energy/autokcalmol
-else
-   stop 'Cannot Identify Potential, Check "Water_Potential" Subroutine'
-endif
-end subroutine water_potential
-!==============================================================================!
 subroutine Hessian(q,H)
 !==============================================================================!
 !       Discussion:
 !Numerically computed Hessian 
-!s          ==> Perturbation parameter 
+!s          ==> Perturbation Parameter 
 !H	    ==> (d,d); Symmetrized Mass-Scaled Hessian
 !q          ==> (Dimen); XYZ Configuration 
 !force	    ==> (Dimen); Forces from Water Potential
@@ -114,6 +88,7 @@ do i=1,d
       if(i.ne.j) H(j,i)=H(i,j)
    enddo
 enddo
+!write(*,*) 'Mass-Scaled Hessian', H
 end subroutine Hessian
 !==============================================================================!
 subroutine Freq_Hess(d,Hess,omega,U)
@@ -121,9 +96,9 @@ subroutine Freq_Hess(d,Hess,omega,U)
 !       Discussion:
 !Compute Eigenvalues and Eigenvectors of Hessian
 !Uses the LLAPACK real symmetric eigen-solver (dsygev)
-!Hess   ==> (Dimen,Dimen); Hessian Matrix
-!omega  ==> (Dimen); Eigenvalues of the Hessian
-!U      ==> (Dimen,Dimen); Eigenvectors of the Hessian
+!Hess   ==> (d,d); Hessian Matrix
+!omega  ==> (d); Eigenvalues of the Hessian
+!U      ==> (d,d); Eigenvectors of the Hessian
 !       LLAPACK (dsyev):
 !v      ==> Compute both Eigenvalues and Eigenvectors
 !u      ==> Use Upper-Triangle of matrix
@@ -131,7 +106,7 @@ subroutine Freq_Hess(d,Hess,omega,U)
 implicit none
 integer::i,info,lwork,d
 double precision::Hess(d,d),omega(d),U(d,d)
-double precision,allocatable::work(:) 
+double precision,allocatable,dimension(:)::work
 lwork=max(1,3*d-1)                      !suggested by LAPACK Developers
 allocate(work(max(1,lwork)))            !suggested by LAPACK Developers 
 U=Hess  
@@ -142,6 +117,34 @@ do i=d,1,-1
     write(*,*) omega(i), omega(i)*autocm, 'normalized==1?', sum(U(:,i)**2)
 enddo
 end subroutine Freq_Hess
+!==============================================================================!
+subroutine water_potential(NO,q,energy,force)
+use iso_c_binding
+use TIP4P_module
+!==============================================================================!
+!       Discussion:
+!Potential Energy module for water
+!       Variables:
+!NO         ==> number of water molecules
+!q          ==> (9*NO); coordinates
+!force      ==> (9*NO) Forces computed in external water potential
+!energy     ==> Potential Energy
+!==============================================================================!
+implicit none
+integer,intent(in)::NO                              
+double precision,dimension(9*NO),intent(in)::q   
+double precision,dimension(9*NO),intent(inout)::force
+double precision,intent(inout)::energy
+if(potential=='tip4p') then
+   call TIP4P(NO,q,energy,force)
+elseif(potential=='mbpol') then
+    call calcpotg(NO,energy,q*bohr,force)
+    force=-force*bohr/autokcalmol
+    energy=energy/autokcalmol
+else
+   stop 'Cannot Identify Potential, Check "Water_Potential" Subroutine'
+endif
+end subroutine water_potential
 !==============================================================================!
 end module dgb_groundstate
 !==============================================================================!
@@ -173,7 +176,8 @@ use dgb_groundstate
 !r_ij           ==> center of the i,j matrix element 
 !E0             ==> Energy Evaluation at the minimum configuration
 !pot_ene        ==> Potential Energy evaluated in q space
-!d          ==> subspace dimensionality
+!d              ==> subspace dimensionality
+!mon_num        ==> monomer dynamics are being run on
 !==============================================================================!
 implicit none
 character(len=50)::coord_in
@@ -183,15 +187,14 @@ integer*8::ii,skip,skip2
 double precision::E0,pot_ene,s_sum,kinetic,alpha0
 real::t1,t2
 !==============================================================================!
-double precision,allocatable::q0(:),q1(:),force(:),r(:,:),r2(:),eigenvalues(:)
-double precision,allocatable::Hess(:,:),omega(:),U(:,:),z(:,:),z2(:,:),Hmat(:,:)
-double precision,allocatable::Smat(:,:),alpha(:),Vmat(:,:),lambda(:),r_ij(:)
-double precision,allocatable::temp(:),temp2(:,:)
+double precision,allocatable,dimension(:)::q0,q1,force,r2,eigenvalues,temp,r_ij
+double precision,allocatable,dimension(:)::omega,alpha,lambda
+double precision,allocatable,dimension(:,:)::r,Hess,U,z,z2,Hmat,Smat,Vmat,temp2
 !==============================================================================!
 !                       LLAPACK dsygv variables                                !
 !==============================================================================!
 integer::itype,info,lwork
-double precision,allocatable::work(:)
+double precision,allocatable,dimension(:)::work
 !==============================================================================!
 !                           Read Input Data File                               !
 !==============================================================================!
@@ -214,33 +217,35 @@ read(16,*) Natoms
 read(16,*) 
 Dimen=3*Natoms 
 !==============================================================================!
-!                         Input Configuration Energy
-!==============================================================================!
 allocate(atom_type(Natoms),mass(Natoms),sqrt_mass(Dimen),q0(Dimen),q1(Dimen))
 allocate(force(Dimen),Hess(d,d),omega(d),U(d,d),z(d1,NG),r_ij(d))
 allocate(z2(d,Nsobol),r(d,NG),alpha(NG),Smat(NG,NG),eigenvalues(NG))
 allocate(Vmat(NG,NG),Hmat(NG,NG),r2(d),lambda(NG),temp(d),temp2(d,d))
+!==============================================================================!
+!                         Input Configuration Energy
+!==============================================================================!
 do i=1,Natoms
     read(16,*) atom_type(i),q0(3*i-2:3*i)   
     mass(i)=Atom_mass(atom_type(i))
     sqrt_mass(3*i-2:3*i)=sqrt(mass(i))
 enddo
 close(16)
-write(*,*) 'Dimen ==> ', Dimen
-write(*,*) 'd ==> ', d
-write(*,*) 'd1 ==> ', d1
+write(*,*) 'Dimen ==> ', Dimen, 'd ==> ', d, 'd1 ==> ', d1
+!==============================================================================!
+! 		Convert to Atomic Units for Calculations	
+!==============================================================================!
 q0=q0/bohr
-CALL water_potential(Natoms/3,q0,E0,force)
+call water_potential(Natoms/3,q0,E0,force)
 write(*,*) 'E0 ==> ',E0*autocm, 'cm-1', E0*autokcalmol, 'kcal/mol'
 !==============================================================================!
 ! 			Compute Hessian and Frequencies
 !==============================================================================!
 call Hessian(q0,Hess)
 call Freq_Hess(d,Hess,omega,U)
-write(*,*) 'Test 2; Successfully Computed Hessian'
+write(*,*) 'Test 2; Successfully Computed Hessian and Frequencies'
 !==============================================================================!
 !                       Subspace Needs Largest Eigenvalues
-! llapack outputs smallest to largest, need to reorder for subspace
+!llapack outputs smallest to largest, need to reorder for subspace
 !==============================================================================!
 temp=omega
 temp2=U
@@ -249,8 +254,8 @@ do i=1,d
     U(:,i)=temp2(:,d+1-i)
 enddo
 !==============================================================================!
-!                 Generate Gaussian Centers with a quasi grid
-! Assume centers are in normal-mode space r (not coordinate space q)
+!           Generate Gaussian Centers with a quasi-random grid
+!Assume centers are in normal-mode space r (not coordinate space q)
 !==============================================================================!
 r=0d0
 do ii=1,NG
@@ -262,8 +267,6 @@ enddo
 write(*,*) 'Test 3; Successfully Generated Gaussian Centers'
 !==============================================================================!
 !                       Generate Alpha Scaling 
-! currently set to use same alpha for all dimensions
-! may need to generate alpha values that are large in dimensions without points
 !==============================================================================!
 do i=1,NG
     alpha(i)=alpha0*NG**(2./d1)*exp(-1./d1*sum(r(:,i)**2*omega(:)))
@@ -372,15 +375,9 @@ write(22,*) mon_num, omega(1)*autocm
 write(22,*) mon_num, omega(2)*autocm
 write(22,*) mon_num, omega(3)*autocm
 close(22)
-open(unit=23,file='energy.dat')
-write(23,*) alpha0, eigenvalues(1)*autokcalmol
-write(23,*) alpha0, eigenvalues(2)*autokcalmol
-write(23,*) alpha0, eigenvalues(3)*autokcalmol
-write(23,*) alpha0, eigenvalues(4)*autokcalmol
+open(unit=23,file='alpha_conv.dat')
+write(23,*) alpha0, eigenvalues(:)*autocm
 close(23)
-open(unit=77,file='alpha_conv.dat')
-write(77,*) alpha0, eigenvalues(:)*autocm
-close(77)
 write(*,*) 'Hello Universe!'
 call cpu_time(t2)
 !==============================================================================!
