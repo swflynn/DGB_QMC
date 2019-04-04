@@ -9,7 +9,7 @@ Example bash scripts for generating input files (to vary the Gaussian Width para
 ## src
 DGB_cluster source code (Fortran 90).
 
-## Data_Analysis
+## Analysis 
 Example scripts for plotting eigenvalues as a function of alpha and eigenvalues as a function of sobol point.
 Example plots are generated using xmgrace, make_data.sh will generate Nsobol and alpha plots. 
 
@@ -26,7 +26,3 @@ TIP4P and MBPOL are implemented currently, requires their source code to compile
 ### Sobol.f90 
 Fortran-90 module for generating standard Sobol Sequences. 
 http://people.sc.fsu.edu/~jburkardt/f_src/sobol/sobol.html
-
-### XYZ Configuration
-Potentials only intended for water calculations (can be modified if desired, check the cluster_module). 
-cage.xyz ==> minimized water configuration for the cage-hexamer (TIP4P). 
