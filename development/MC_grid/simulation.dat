@@ -1,0 +1,7 @@
+ Nparticles ==>          100
+ particle dimensionality ==>            2
+ Number of MMC Iterations ==>     10000000
+ epsilon LJ ==>    1000.0000000000000     
+ c_LJ ==>    5.0000000000000000     
+ Final Move Cutoff ==>    1.3318291413164941E-008
+ Total Time ==>    138.38651700000000     
