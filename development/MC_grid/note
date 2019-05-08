@@ -1,9 +1,0 @@
-mc_grid_shane is the original code  I wrote
-mc_grid is an updates version with vlads help to optimize
-
-calcualtion seems very sensitive to the lennard-jones  parameter c
-
-needs the sobol.f90 code
-
-code uses an initial gaussian distribution generated with sobol points
-We then use MMC (Metropolis Monte Carlo) to move to points to an optimal spacing  with a pair potential (LJ) and an underlyign distribution PX (hardcoded gaussian for now)
